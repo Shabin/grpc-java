@@ -9,20 +9,20 @@ jobs:
       - name: Install Protobuf
         run: |
           brew install protobuf
-          echo "Protobuf installed at:"
           brew --prefix protobuf
-          ls $(brew --prefix protobuf)/include/google/protobuf/
       
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Build with Protobuf paths
+      - name: Build
         run: |
-          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include
-          export LIBRARY_PATH=$(brew --prefix protobuf)/lib
-          ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
+          PROTOBUF_PREFIX=$(brew --prefix protobuf)
+          ./gradlew :grpc-compiler:java_pluginExecutable \
+            -PskipAndroid=true \
+            -PprotobufIncludePath=${PROTOBUF_PREFIX}/include \
+            -PprotobufLibPath=${PROTOBUF_PREFIX}/lib
       
       - uses: actions/upload-artifact@v4
         with:
