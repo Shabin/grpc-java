@@ -41,7 +41,7 @@ jobs:
         run: |
           cd $HOME
           # Try the latest protobuf
-          git clone --depth 1 --branch v29.3 https://github.com/protocolbuffers/protobuf.git
+          git clone --depth 1 https://github.com/protocolbuffers/protobuf.git
           cd protobuf
           mkdir build && cd build
           cmake .. \
