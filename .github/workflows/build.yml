@@ -6,12 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Protobuf
+      - name: Install Protobuf and dependencies
         run: |
-          brew install protobuf
-          echo "Protobuf installed at:"
-          brew --prefix protobuf
-          ls $(brew --prefix protobuf)/include/google/protobuf/
+          brew install protobuf abseil
       
       - uses: actions/setup-java@v4
         with:
@@ -20,8 +17,8 @@ jobs:
       
       - name: Build with Protobuf paths
         run: |
-          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include
-          export LIBRARY_PATH=$(brew --prefix protobuf)/lib
+          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
+          export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
           ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
       
       - uses: actions/upload-artifact@v4
