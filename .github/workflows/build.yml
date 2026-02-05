@@ -6,27 +6,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Protobuf and dependencies
+      - name: Install older Protobuf
         run: |
-          brew install protobuf abseil
+          # Install protobuf 21.x (older, more compatible)
+          brew install protobuf@21
+          brew link protobuf@21 --force
       
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Patch build for macOS version
-        run: |
-          # Add compiler flag to build.gradle
-          sed -i '' 's/cppCompiler.args/cppCompiler.args "-mmacosx-version-min=10.15",/g' compiler/build.gradle || true
-          
-          # Or add it globally
-          echo "allprojects { tasks.withType(CppCompile) { compilerArgs.add('-mmacosx-version-min=10.15') } }" >> build.gradle
-      
       - name: Build
         run: |
-          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
-          export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
+          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf@21)/include
+          export LIBRARY_PATH=$(brew --prefix protobuf@21)/lib
+          export PATH=$(brew --prefix protobuf@21)/bin:$PATH
           ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
       
       - uses: actions/upload-artifact@v4
