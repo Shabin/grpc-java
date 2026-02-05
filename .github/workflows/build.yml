@@ -1,0 +1,17 @@
+name: Build arm64
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install protobuf
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - run: ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: protoc-gen-grpc-java-arm64
+          path: compiler/build/exe/java_plugin/protoc-gen-grpc-java
