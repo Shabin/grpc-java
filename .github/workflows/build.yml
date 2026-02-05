@@ -19,9 +19,15 @@ jobs:
         run: |
           export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
           export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
+          export MACOSX_DEPLOYMENT_TARGET=10.15
           ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
       
       - uses: actions/upload-artifact@v4
         with:
           name: protoc-gen-grpc-java-arm64
           path: compiler/build/exe/java_plugin/protoc-gen-grpc-java
+```
+
+Added:
+```
+export MACOSX_DEPLOYMENT_TARGET=10.15
