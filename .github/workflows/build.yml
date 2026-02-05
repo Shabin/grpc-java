@@ -19,8 +19,39 @@ jobs:
         run: |
           export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
           export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
-          export MACOSX_DEPLOYMENT_TARGET=10.15
-          ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
+          export CXXFLAGS="-mmacosx-version-min=10.15"
+          export CFLAGS="-mmacosx-version-min=10.15"
+          export LDFLAGS="-mmacosx-version-min=10.15"
+          ./gradlew :grpc-compiler:java_pluginExecutableJava_pluginCpp :grpc-compiler:java_pluginExecutable -PskipAndroid=true --info
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: protoc-gen-grpc-java-arm64
+          path: compiler/build/exe/java_plugin/protoc-gen-grpc-javaname: Build arm64
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Protobuf and dependencies
+        run: |
+          brew install protobuf abseil
+      
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Build with Protobuf paths
+        run: |
+          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
+          export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
+          export CXXFLAGS="-mmacosx-version-min=10.15"
+          export CFLAGS="-mmacosx-version-min=10.15"
+          export LDFLAGS="-mmacosx-version-min=10.15"
+          ./gradlew :grpc-compiler:java_pluginExecutableJava_pluginCpp :grpc-compiler:java_pluginExecutable -PskipAndroid=true --info
       
       - uses: actions/upload-artifact@v4
         with:
