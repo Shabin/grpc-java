@@ -1,4 +1,4 @@
-name: Build arm64
+name: Build arm64 manual
 on: workflow_dispatch
 jobs:
   build:
@@ -6,69 +6,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install Protobuf and dependencies
+      - name: Install dependencies
         run: |
           brew install protobuf abseil
       
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Patch build.gradle with Python
+      - name: Manual compile
         run: |
-          python3 << 'EOF'
-          import re
+          PROTOBUF_PREFIX=$(brew --prefix protobuf)
+          ABSEIL_PREFIX=$(brew --prefix abseil)
           
-          with open('compiler/build.gradle', 'r') as f:
-              content = f.read()
+          # Get all abseil dylibs for linking
+          ABSEIL_LIBS=$(pkg-config --libs absl_log absl_log_internal_message absl_log_internal_check_op absl_strings absl_hash absl_raw_hash_set absl_synchronization absl_base absl_time absl_int128 2>/dev/null || echo "-L${ABSEIL_PREFIX}/lib -labsl_log_internal_message -labsl_log_internal_check_op -labsl_strings -labsl_hash -labsl_raw_hash_set -labsl_synchronization -labsl_base -labsl_time -labsl_int128 -labsl_raw_logging_internal -labsl_throw_delegate -labsl_string_view -labsl_strings_internal -labsl_spinlock_wait -labsl_city -labsl_low_level_hash -labsl_debugging_internal -labsl_demangle_internal -labsl_stacktrace -labsl_symbolize -labsl_time_zone -labsl_log_severity -labsl_examine_stack -labsl_log_globals -labsl_log_internal_conditions -labsl_log_internal_format -labsl_log_internal_nullguard -labsl_strerror -labsl_log_sink -labsl_hashtablez_sampler -labsl_malloc_internal -labsl_vlog_config_internal")
           
-          # Print lines with cppCompiler for debugging
-          print("=== Lines with cppCompiler ===")
-          for i, line in enumerate(content.split('\n')):
-              if 'cppCompiler' in line:
-                  print(f"{i}: {line}")
+          echo "Abseil libs: $ABSEIL_LIBS"
           
-          # Add -mmacosx-version-min=10.15 to ALL cppCompiler.args lines
-          content = re.sub(
-              r'(cppCompiler\.args\s+)"',
-              r'\1"-mmacosx-version-min=10.15", "',
-              content
-          )
+          cd compiler/src/java_plugin/cpp
           
-          # Add abseil libs to linker.args with -lprotobuf
-          abseil_libs = ', "-L/opt/homebrew/opt/abseil/lib", "-labsl_log_internal_message", "-labsl_log_internal_nullguard", "-labsl_log_internal_check_op", "-labsl_log_internal_conditions", "-labsl_log_internal_format", "-labsl_raw_hash_set", "-labsl_hash", "-labsl_city", "-labsl_low_level_hash", "-labsl_hashtablez_sampler", "-labsl_raw_logging_internal", "-labsl_spinlock_wait", "-labsl_synchronization", "-labsl_stacktrace", "-labsl_symbolize", "-labsl_debugging_internal", "-labsl_demangle_internal", "-labsl_malloc_internal", "-labsl_base", "-labsl_throw_delegate", "-labsl_time", "-labsl_time_zone", "-labsl_int128", "-labsl_strings", "-labsl_strings_internal", "-labsl_string_view", "-labsl_examine_stack", "-labsl_log_globals", "-labsl_log_severity", "-labsl_log_sink", "-labsl_strerror"'
+          # Compile each file
+          clang++ -std=c++17 -mmacosx-version-min=10.15 \
+            -I${PROTOBUF_PREFIX}/include \
+            -I${ABSEIL_PREFIX}/include \
+            -c java_generator.cpp -o java_generator.o
           
-          content = content.replace(
-              '"-lprotobuf"',
-              '"-lprotobuf"' + abseil_libs
-          )
+          clang++ -std=c++17 -mmacosx-version-min=10.15 \
+            -I${PROTOBUF_PREFIX}/include \
+            -I${ABSEIL_PREFIX}/include \
+            -c java_plugin.cpp -o java_plugin.o
           
-          # Also add linker flag for macos version
-          content = re.sub(
-              r'(linker\.args\s+)"',
-              r'\1"-mmacosx-version-min=10.15", "',
-              content
-          )
+          # Link
+          clang++ -mmacosx-version-min=10.15 \
+            java_generator.o java_plugin.o \
+            -L${PROTOBUF_PREFIX}/lib \
+            -L${ABSEIL_PREFIX}/lib \
+            -lprotoc -lprotobuf \
+            $ABSEIL_LIBS \
+            -o protoc-gen-grpc-java
           
-          with open('compiler/build.gradle', 'w') as f:
-              f.write(content)
+          # Verify
+          file protoc-gen-grpc-java
+          ./protoc-gen-grpc-java --version || true
           
-          print("\n=== Modified lines with cppCompiler ===")
-          for i, line in enumerate(content.split('\n')):
-              if 'cppCompiler' in line or 'linker.args' in line:
-                  print(f"{i}: {line}")
-          EOF
-      
-      - name: Build
-        run: |
-          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
-          export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
-          
-          ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
+          # Copy to expected location
+          mkdir -p $GITHUB_WORKSPACE/output
+          cp protoc-gen-grpc-java $GITHUB_WORKSPACE/output/
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: protoc-gen-grpc-java-arm64
-          path: compiler/build/exe/java_plugin/protoc-gen-grpc-java
+          path: output/protoc-gen-grpc-java
