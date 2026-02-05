@@ -15,19 +15,50 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Patch build.gradle for macOS version and abseil
+      - name: Patch build.gradle with Python
         run: |
-          cd compiler
+          python3 << 'EOF'
+          import re
           
-          # Add -mmacosx-version-min=10.15 to cppCompiler args
-          sed -i '' 's/cppCompiler.args "-I/cppCompiler.args "-mmacosx-version-min=10.15", "-I/' build.gradle
+          with open('compiler/build.gradle', 'r') as f:
+              content = f.read()
           
-          # Add abseil libs to linker
-          sed -i '' 's|linker.args "-lprotoc", "-lprotobuf"|linker.args "-mmacosx-version-min=10.15", "-lprotoc", "-lprotobuf", "-L/opt/homebrew/opt/abseil/lib", "-labsl_log_internal_message", "-labsl_log_internal_nullguard", "-labsl_log_internal_check_op", "-labsl_log_internal_conditions", "-labsl_log_internal_format", "-labsl_raw_hash_set", "-labsl_hash", "-labsl_city", "-labsl_low_level_hash", "-labsl_hashtablez_sampler", "-labsl_raw_logging_internal", "-labsl_spinlock_wait", "-labsl_synchronization", "-labsl_stacktrace", "-labsl_symbolize", "-labsl_debugging_internal", "-labsl_demangle_internal", "-labsl_malloc_internal", "-labsl_base", "-labsl_throw_delegate", "-labsl_time", "-labsl_time_zone", "-labsl_int128", "-labsl_strings", "-labsl_strings_internal", "-labsl_string_view", "-labsl_examine_stack", "-labsl_log_globals", "-labsl_log_severity", "-labsl_log_sink", "-labsl_strerror"|' build.gradle
+          # Print lines with cppCompiler for debugging
+          print("=== Lines with cppCompiler ===")
+          for i, line in enumerate(content.split('\n')):
+              if 'cppCompiler' in line:
+                  print(f"{i}: {line}")
           
-          echo "=== Checking patches ==="
-          grep -A2 "cppCompiler.args" build.gradle | head -10
-          grep "linker.args" build.gradle | head -5
+          # Add -mmacosx-version-min=10.15 to ALL cppCompiler.args lines
+          content = re.sub(
+              r'(cppCompiler\.args\s+)"',
+              r'\1"-mmacosx-version-min=10.15", "',
+              content
+          )
+          
+          # Add abseil libs to linker.args with -lprotobuf
+          abseil_libs = ', "-L/opt/homebrew/opt/abseil/lib", "-labsl_log_internal_message", "-labsl_log_internal_nullguard", "-labsl_log_internal_check_op", "-labsl_log_internal_conditions", "-labsl_log_internal_format", "-labsl_raw_hash_set", "-labsl_hash", "-labsl_city", "-labsl_low_level_hash", "-labsl_hashtablez_sampler", "-labsl_raw_logging_internal", "-labsl_spinlock_wait", "-labsl_synchronization", "-labsl_stacktrace", "-labsl_symbolize", "-labsl_debugging_internal", "-labsl_demangle_internal", "-labsl_malloc_internal", "-labsl_base", "-labsl_throw_delegate", "-labsl_time", "-labsl_time_zone", "-labsl_int128", "-labsl_strings", "-labsl_strings_internal", "-labsl_string_view", "-labsl_examine_stack", "-labsl_log_globals", "-labsl_log_severity", "-labsl_log_sink", "-labsl_strerror"'
+          
+          content = content.replace(
+              '"-lprotobuf"',
+              '"-lprotobuf"' + abseil_libs
+          )
+          
+          # Also add linker flag for macos version
+          content = re.sub(
+              r'(linker\.args\s+)"',
+              r'\1"-mmacosx-version-min=10.15", "',
+              content
+          )
+          
+          with open('compiler/build.gradle', 'w') as f:
+              f.write(content)
+          
+          print("\n=== Modified lines with cppCompiler ===")
+          for i, line in enumerate(content.split('\n')):
+              if 'cppCompiler' in line or 'linker.args' in line:
+                  print(f"{i}: {line}")
+          EOF
       
       - name: Build
         run: |
