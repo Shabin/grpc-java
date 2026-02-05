@@ -6,28 +6,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install older Protobuf
+      - name: Install Protobuf and dependencies
         run: |
-          brew install protobuf@21
+          brew install protobuf abseil
       
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
       
+      - name: Patch build.gradle
+        run: |
+          # Add the macOS deployment target to compiler/build.gradle
+          cat >> compiler/build.gradle << 'EOF'
+          
+          // Fix macOS deployment target for C++17 features
+          model {
+              toolChains {
+                  clang(Clang) {
+                      eachPlatform {
+                          cppCompiler.withArguments { args ->
+                              args << "-mmacosx-version-min=10.15"
+                          }
+                          linker.withArguments { args ->
+                              args << "-mmacosx-version-min=10.15"
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+      
       - name: Build
         run: |
-          export PATH="/opt/homebrew/opt/protobuf@21/bin:$PATH"
-          export CPLUS_INCLUDE_PATH="/opt/homebrew/opt/protobuf@21/include"
-          export CPPFLAGS="-I/opt/homebrew/opt/protobuf@21/include"
-          export LDFLAGS="-L/opt/homebrew/opt/protobuf@21/lib"
-          export LIBRARY_PATH="/opt/homebrew/opt/protobuf@21/lib"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/protobuf@21/lib/pkgconfig"
-          
-          # Verify protoc is found
-          which protoc
-          protoc --version
-          
+          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include:$(brew --prefix abseil)/include
+          export LIBRARY_PATH=$(brew --prefix protobuf)/lib:$(brew --prefix abseil)/lib
           ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
       
       - uses: actions/upload-artifact@v4
