@@ -6,6 +6,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Check required protobuf version
+        run: |
+          echo "=== Checking grpc-java's expected protobuf version ==="
+          grep -r "protobuf" gradle.properties || true
+          grep -r "protobufVersion" build.gradle || true
+          grep -r "com.google.protobuf:protobuf" build.gradle | head -5 || true
+          cat gradle/libs.versions.toml | grep -i protobuf || true
+      
       - name: Install build tools
         run: |
           brew install cmake ninja
@@ -29,10 +37,11 @@ jobs:
           ninja
           ninja install
       
-      - name: Build protobuf static
+      - name: Build protobuf static (latest)
         run: |
           cd $HOME
-          git clone --depth 1 --branch v28.3 https://github.com/protocolbuffers/protobuf.git
+          # Try the latest protobuf
+          git clone --depth 1 --branch v29.3 https://github.com/protocolbuffers/protobuf.git
           cd protobuf
           mkdir build && cd build
           cmake .. \
@@ -49,8 +58,8 @@ jobs:
           ninja
           ninja install
           
-          echo "=== Protobuf static libs ==="
-          ls $HOME/local/lib/*.a
+          echo "=== Check for QualifiedClassName ==="
+          grep -r "QualifiedClassName" $HOME/local/include/google/protobuf/ || echo "Not found in headers"
       
       - name: Compile grpc-java plugin
         run: |
@@ -64,7 +73,6 @@ jobs:
             -I$HOME/local/include \
             -c java_plugin.cpp -o java_plugin.o
           
-          # Link everything statically
           clang++ -mmacosx-version-min=10.15 \
             java_generator.o java_plugin.o \
             $HOME/local/lib/libprotoc.a \
