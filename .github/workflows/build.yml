@@ -13,7 +13,7 @@ jobs:
       - name: Build abseil static
         run: |
           cd $HOME
-          git clone --depth 1 --branch 20240116.2 https://github.com/abseil/abseil-cpp.git
+          git clone --depth 1 --branch 20240722.0 https://github.com/abseil/abseil-cpp.git
           cd abseil-cpp
           mkdir build && cd build
           cmake .. \
@@ -28,14 +28,11 @@ jobs:
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           ninja
           ninja install
-          
-          echo "=== Abseil static libs ==="
-          ls $HOME/local/lib/*.a | head -20
       
       - name: Build protobuf static
         run: |
           cd $HOME
-          git clone --depth 1 --branch v25.3 https://github.com/protocolbuffers/protobuf.git
+          git clone --depth 1 --branch v28.3 https://github.com/protocolbuffers/protobuf.git
           cd protobuf
           mkdir build && cd build
           cmake .. \
@@ -53,13 +50,12 @@ jobs:
           ninja install
           
           echo "=== Protobuf static libs ==="
-          ls $HOME/local/lib/*.a | head -20
+          ls $HOME/local/lib/*.a
       
       - name: Compile grpc-java plugin
         run: |
           cd compiler/src/java_plugin/cpp
           
-          # Compile
           clang++ -std=c++17 -mmacosx-version-min=10.15 \
             -I$HOME/local/include \
             -c java_generator.cpp -o java_generator.o
@@ -67,10 +63,6 @@ jobs:
           clang++ -std=c++17 -mmacosx-version-min=10.15 \
             -I$HOME/local/include \
             -c java_plugin.cpp -o java_plugin.o
-          
-          # Get list of all static libs needed
-          echo "=== All static libs ==="
-          ls $HOME/local/lib/*.a
           
           # Link everything statically
           clang++ -mmacosx-version-min=10.15 \
@@ -86,11 +78,9 @@ jobs:
           echo "=== Checking dependencies ==="
           otool -L protoc-gen-grpc-java
           
-          echo "=== File info ==="
           file protoc-gen-grpc-java
           ls -lh protoc-gen-grpc-java
           
-          echo "=== Test run ==="
           ./protoc-gen-grpc-java --version || echo "Done"
           
           mkdir -p $GITHUB_WORKSPACE/output
