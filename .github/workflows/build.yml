@@ -26,8 +26,3 @@ jobs:
         with:
           name: protoc-gen-grpc-java-arm64
           path: compiler/build/exe/java_plugin/protoc-gen-grpc-java
-```
-
-Added:
-```
-export MACOSX_DEPLOYMENT_TARGET=10.15
