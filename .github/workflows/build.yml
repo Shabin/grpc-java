@@ -1,4 +1,4 @@
-name: Build arm64 manual
+name: Build arm64
 on: workflow_dispatch
 jobs:
   build:
@@ -6,24 +6,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install deps
-        run: brew install protobuf
-      
-      - name: Build manually
+      - name: Install Protobuf
         run: |
-          cd compiler/src/java_plugin/cpp
-          
-          c++ -std=c++17 -O2 \
-            -I/opt/homebrew/include \
-            -L/opt/homebrew/lib \
-            -lprotobuf -lprotoc \
-            -o protoc-gen-grpc-java \
-            java_plugin.cpp java_generator.cpp
-          
-          chmod +x protoc-gen-grpc-java
-          ./protoc-gen-grpc-java --version
+          brew install protobuf
+          echo "Protobuf installed at:"
+          brew --prefix protobuf
+          ls $(brew --prefix protobuf)/include/google/protobuf/
+      
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Build with Protobuf paths
+        run: |
+          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include
+          export LIBRARY_PATH=$(brew --prefix protobuf)/lib
+          ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
       
       - uses: actions/upload-artifact@v4
         with:
           name: protoc-gen-grpc-java-arm64
-          path: compiler/src/java_plugin/cpp/protoc-gen-grpc-java
+          path: compiler/build/exe/java_plugin/protoc-gen-grpc-java
