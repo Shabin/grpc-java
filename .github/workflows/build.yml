@@ -5,12 +5,25 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - run: brew install protobuf
+      
+      - name: Install Protobuf
+        run: |
+          brew install protobuf
+          echo "Protobuf installed at:"
+          brew --prefix protobuf
+          ls $(brew --prefix protobuf)/include/google/protobuf/
+      
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      - run: ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
+      
+      - name: Build with Protobuf paths
+        run: |
+          export CPLUS_INCLUDE_PATH=$(brew --prefix protobuf)/include
+          export LIBRARY_PATH=$(brew --prefix protobuf)/lib
+          ./gradlew :grpc-compiler:java_pluginExecutable -PskipAndroid=true
+      
       - uses: actions/upload-artifact@v4
         with:
           name: protoc-gen-grpc-java-arm64
